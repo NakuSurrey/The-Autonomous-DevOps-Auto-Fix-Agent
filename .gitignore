@@ -1,0 +1,46 @@
+# ============================================
+# Autonomous DevOps & Auto-Fix Agent - .gitignore
+# ============================================
+
+# Environment variables (contains API keys - NEVER commit)
+.env
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+logs/*.jsonl
+logs/*.log
+
+# Phase reference and architecture docs (stay local)
+docs/*.md
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# PyTest cache
+.pytest_cache/
+.coverage
+htmlcov/

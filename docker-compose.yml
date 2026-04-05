@@ -1,0 +1,39 @@
+# ============================================
+# Autonomous DevOps & Auto-Fix Agent - Docker Compose
+# ============================================
+# Starts the sandbox container with one command:
+#   docker-compose up -d --build
+#
+# Stops and removes the container:
+#   docker-compose down
+# ============================================
+
+version: "3.8"
+
+services:
+  sandbox:
+    # Build the container using our Dockerfile in the current directory
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Name the container so the agent can reference it by name
+    # instead of a random ID
+    container_name: devops-agent-sandbox
+
+    # Keep the container running in the background
+    # "tty: true" allocates a terminal — needed for some commands
+    tty: true
+
+    # SECURITY: No network access inside the container
+    # The agent should NOT be able to run "curl" or "pip install"
+    # inside the sandbox. This prevents the LLM from accidentally
+    # downloading malicious packages.
+    network_mode: "none"
+
+    # Resource limits — prevent runaway processes from eating all RAM/CPU
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M

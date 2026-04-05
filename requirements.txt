@@ -1,0 +1,9 @@
+# ============================================
+# Autonomous DevOps & Auto-Fix Agent - Dependencies
+# ============================================
+
+# Google Gemini SDK - talks to the Gemini API
+google-generativeai>=0.7.0
+
+# Loads environment variables from .env file
+python-dotenv>=1.0.0
