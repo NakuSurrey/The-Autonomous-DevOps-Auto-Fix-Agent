@@ -26,7 +26,7 @@ HOW TO RUN:
 """
 
 import sys
-from agent.config import validate_config, MAX_FIX_ATTEMPTS, GEMINI_MODEL
+from agent.config import validate_config, MAX_FIX_ATTEMPTS, GEMINI_MODEL, LOG_LEVEL
 from agent.react_loop import run_react_loop
 
 
@@ -62,6 +62,8 @@ def main():
     print("=" * 60)
     print(f"  Model:        {GEMINI_MODEL}")
     print(f"  Max attempts: {MAX_FIX_ATTEMPTS}")
+    print(f"  Log level:    {LOG_LEVEL}")
+    print(f"  Log file:     logs/agent_runs.jsonl")
     print("=" * 60)
     print()
     print("Starting agent...")
@@ -91,6 +93,8 @@ def main():
     if result["success"]:
         print(f"  STATUS:   SUCCESS")
         print(f"  ATTEMPTS: {result['attempts']}")
+        if result.get("branch"):
+            print(f"  BRANCH:   {result['branch']}")
         print(f"  All tests are now passing.")
     else:
         print(f"  STATUS:   FAILED")

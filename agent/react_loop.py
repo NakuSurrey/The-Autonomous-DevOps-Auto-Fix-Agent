@@ -13,14 +13,15 @@ WHY IT EXISTS:
 
 WHERE IT SITS IN THE CODEBASE:
     agent/react_loop.py
-    ├── Reads from: agent/config.py (MAX_FIX_ATTEMPTS)
+    ├── Reads from: agent/config.py (MAX_FIX_ATTEMPTS, GEMINI_MODEL)
     ├── Reads from: agent/llm_client.py (LLMClient class)
     ├── Reads from: agent/prompt_templates.py (message templates)
+    ├── Reads from: agent/logger.py (AgentLogger class)
     ├── Calls: tools/test_runner.py (run_tests)
     ├── Calls: tools/file_reader.py (read_file)
     ├── Calls: tools/file_writer.py (write_file)
     ├── Used by: agent/main.py (entry point calls run_react_loop)
-    └── Sends to: Phase 4 will add logging hooks into this loop
+    └── Logging: Uses AgentLogger for structured JSON logging
 
 HOW THE LOOP WORKS:
     Step 1  → Run tests → capture the failure output
@@ -33,8 +34,11 @@ HOW THE LOOP WORKS:
     Step 8  → If attempt count >= MAX: give up
 """
 
-from agent.config import MAX_FIX_ATTEMPTS
+from agent.config import MAX_FIX_ATTEMPTS, GEMINI_MODEL
+from agent.git_operations import commit_fix
+from agent.guardrails import validate_tool_call
 from agent.llm_client import LLMClient
+from agent.logger import AgentLogger
 from agent.prompt_templates import INITIAL_MESSAGE_TEMPLATE, OBSERVATION_TEMPLATE
 from tools.test_runner import run_tests
 from tools.file_reader import read_file
@@ -138,21 +142,36 @@ def run_react_loop() -> dict:
     """
 
     # --------------------------------------------------
+    # Initialize the structured logger for this run.
+    # Every event from this point forward is logged to
+    # logs/agent_runs.jsonl AND printed to the terminal.
+    # --------------------------------------------------
+    logger = AgentLogger()
+
+    # --------------------------------------------------
     # This list records everything that happens in the loop.
     # Each entry is a dict with "type" and "content".
-    # Phase 4 will use this for structured logging.
+    # Kept for backward compatibility (main.py reads this).
     # --------------------------------------------------
     history = []
 
-    def log_event(event_type: str, content: str):
-        """Adds an event to the history list."""
+    def log_event(event_type: str, content: str, metadata: dict = None):
+        """
+        Logs an event to BOTH the history list and the structured logger.
+
+        This function replaces the old log_event() that only printed
+        to the terminal. Now it also writes structured JSON to the
+        log file via AgentLogger.
+        """
         entry = {"type": event_type, "content": content}
         history.append(entry)
-        # Print to terminal so we can watch the agent work in real time
-        print(f"\n{'='*60}")
-        print(f"[{event_type.upper()}]")
-        print(f"{'='*60}")
-        print(content)
+        # Log to structured logger (writes to .jsonl file + prints)
+        logger.log(event_type, content, metadata)
+
+    # ==========================================================
+    # Step 0: Log the start of this run
+    # ==========================================================
+    logger.log_run_start(model=GEMINI_MODEL, max_attempts=MAX_FIX_ATTEMPTS)
 
     # ==========================================================
     # Step 1: Run the initial tests
@@ -165,6 +184,7 @@ def run_react_loop() -> dict:
     # ==========================================================
     if initial_test_result["success"]:
         log_event("system", "All tests already pass. Nothing to fix.")
+        logger.log_run_end(success=True, attempts=0)
         return {
             "success": True,
             "attempts": 0,
@@ -197,6 +217,7 @@ def run_react_loop() -> dict:
 
     while attempt < MAX_FIX_ATTEMPTS:
         attempt += 1
+        logger.set_attempt(attempt)
         log_event("system", f"--- Attempt {attempt} of {MAX_FIX_ATTEMPTS} ---")
 
         # ------------------------------------------------------
@@ -227,26 +248,69 @@ def run_react_loop() -> dict:
                 tool_name = response["content"]["name"]
                 tool_args = response["content"]["args"]
 
+                logger.log_tool_call(tool_name, tool_args)
                 log_event(
                     "action",
-                    f"LLM called: {tool_name}({tool_args})"
+                    f"LLM called: {tool_name}({tool_args})",
+                    metadata={"tool_name": tool_name, "tool_args": tool_args},
                 )
 
-                # Execute the tool
-                tool_result = execute_tool(tool_name, tool_args)
+                # ------------------------------------------
+                # GUARDRAIL CHECK: Validate before executing
+                # ------------------------------------------
+                # This sits between the LLM's request and
+                # the actual tool execution. If the call is
+                # blocked, we send the block reason back to
+                # the LLM instead of executing the tool.
+                # ------------------------------------------
+                guard_result = validate_tool_call(tool_name, tool_args)
 
+                if not guard_result["allowed"]:
+                    # Tool call was blocked by guardrails
+                    tool_result = guard_result["reason"]
+                    logger.log_error(
+                        f"Guardrail blocked: {tool_result}",
+                        context=f"validate_{tool_name}"
+                    )
+                    log_event(
+                        "guardrail_block",
+                        f"BLOCKED: {tool_result}",
+                        metadata={"tool_name": tool_name, "tool_args": tool_args},
+                    )
+                else:
+                    # Tool call passed validation — execute it
+                    tool_result = execute_tool(tool_name, tool_args)
+
+                logger.log_tool_result(tool_name, tool_result)
                 log_event(
                     "observation",
-                    f"Result of {tool_name}:\n{tool_result[:2000]}"  # Truncate very long outputs
+                    f"Result of {tool_name}:\n{tool_result[:2000]}",  # Truncate very long outputs
+                    metadata={"tool_name": tool_name, "result_length": len(tool_result)},
                 )
 
                 # Check if the tool was run_tests and it passed
                 if tool_name == "run_tests" and "PASSED" in tool_result and "FAILED" not in tool_result:
                     log_event("system", "ALL TESTS PASSED! Fix successful.")
+
+                    # ------------------------------------------
+                    # Git workflow: branch + stage + commit
+                    # ------------------------------------------
+                    git_result = commit_fix(
+                        run_id=logger.run_id,
+                        attempt=attempt,
+                        logger=logger,
+                    )
+                    if git_result["success"]:
+                        log_event("system", f"Git commit done: {git_result['message']}")
+                    else:
+                        log_event("warning", f"Git commit failed: {git_result['message']}")
+
+                    logger.log_run_end(success=True, attempts=attempt)
                     return {
                         "success": True,
                         "attempts": attempt,
                         "history": history,
+                        "branch": git_result.get("branch_name", ""),
                     }
 
                 # Send the tool result back to the LLM
@@ -258,15 +322,32 @@ def run_react_loop() -> dict:
                 # LLM sent a text response
                 # ------------------------------------------
                 text_content = response["content"]
+                logger.log_thought(text_content)
                 log_event("thought", text_content)
 
                 # Check if the LLM says all tests passed
                 if "ALL_TESTS_PASSED" in text_content:
                     log_event("system", "LLM reports all tests passed.")
+
+                    # ------------------------------------------
+                    # Git workflow: branch + stage + commit
+                    # ------------------------------------------
+                    git_result = commit_fix(
+                        run_id=logger.run_id,
+                        attempt=attempt,
+                        logger=logger,
+                    )
+                    if git_result["success"]:
+                        log_event("system", f"Git commit done: {git_result['message']}")
+                    else:
+                        log_event("warning", f"Git commit failed: {git_result['message']}")
+
+                    logger.log_run_end(success=True, attempts=attempt)
                     return {
                         "success": True,
                         "attempts": attempt,
                         "history": history,
+                        "branch": git_result.get("branch_name", ""),
                     }
 
                 # Send a follow-up message to keep the loop going
@@ -280,6 +361,10 @@ def run_react_loop() -> dict:
                 # ------------------------------------------
                 # Unexpected response type
                 # ------------------------------------------
+                logger.log_error(
+                    f"Unexpected response type: {response['type']}",
+                    context="react_loop_inner"
+                )
                 log_event(
                     "error",
                     f"Unexpected response type: {response['type']}"
@@ -306,6 +391,7 @@ def run_react_loop() -> dict:
         f"GIVING UP after {MAX_FIX_ATTEMPTS} attempts. "
         "Could not fix all failing tests."
     )
+    logger.log_run_end(success=False, attempts=MAX_FIX_ATTEMPTS)
 
     return {
         "success": False,
