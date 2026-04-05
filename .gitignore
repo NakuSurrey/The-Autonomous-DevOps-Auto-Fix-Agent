@@ -31,8 +31,12 @@ Thumbs.db
 logs/*.jsonl
 logs/*.log
 
-# Phase reference and architecture docs (stay local)
-docs/*.md
+# Entire docs folder stays local — never pushed to GitHub
+docs/
+
+# Project instruction files — stay local, not part of the codebase
+CLAUDE.md
+PLAN.md
 
 # Distribution / packaging
 dist/
@@ -44,4 +48,3 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
-ERRORS.md
