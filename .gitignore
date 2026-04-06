@@ -38,6 +38,10 @@ docs/
 CLAUDE.md
 PLAN.md
 
+# SFT data and evaluation reports — generated at runtime, not source code
+data/*.jsonl
+data/*.json
+
 # Distribution / packaging
 dist/
 build/

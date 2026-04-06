@@ -1,101 +1,251 @@
-# Autonomous DevOps & Auto-Fix Agent
+<h1 align="center">Autonomous DevOps & Auto-Fix Agent</h1>
 
-An AI-powered agent that monitors a Python codebase, detects failing tests, and automatically writes and commits fixes. Built using the ReAct (Reasoning + Acting) framework with Google Gemini as the reasoning engine.
+<p align="center">
+  <strong>An AI agent that detects failing tests, diagnoses bugs, writes code fixes, and commits them — fully autonomously inside a Docker sandbox.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/Google%20Gemini-API-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Google Gemini">
+  <img src="https://img.shields.io/badge/Docker-Sandboxed-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/PyTest-Testing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white" alt="PyTest">
+  <img src="https://img.shields.io/badge/SFT-Fine--Tuning%20Ready-FF6F00?style=for-the-badge&logo=huggingface&logoColor=white" alt="SFT Ready">
+</p>
+
+---
+
+## Demo
+
+<p align="center">
+  <img src="assets/demo-terminal.svg" alt="Agent Demo — Terminal Output" width="780">
+</p>
+
+---
 
 ## What It Does
 
-The agent runs inside a Docker sandbox. It executes the test suite, reads the error output, reasons about what went wrong, reads the broken source code, writes a fix, and re-runs the tests to verify. If the fix works, it creates a branch and commits the changes automatically. If it does not work, it tries again — up to 5 attempts.
+This agent watches a Python codebase for test failures and fixes them without human input. It runs the full debugging cycle: detect the failure, read the error, analyze the code, write a fix, verify it works, and commit it.
 
-The full loop looks like this:
+Everything runs inside an isolated Docker container. The agent cannot touch the host machine.
+
+After a successful fix, the agent's logs can be exported as **SFT (Supervised Fine-Tuning) training data** — ready to fine-tune a local model like Llama 3 or Mistral to replicate the agent's behavior.
+
+### The Core Loop
 
 ```
-Run tests → Tests fail → Read errors → Read source code → Write fix → Re-run tests
-    ↑                                                                        │
-    └────────────────── Loop until all tests pass or max attempts ───────────┘
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                                                                  │
+  ▼                                                                  │
+Run Tests ──► Tests Fail ──► Read Errors ──► Read Source Code        │
+                                                  │                  │
+                                                  ▼                  │
+                                          Write Fix to File          │
+                                                  │                  │
+                                                  ▼                  │
+                                        Re-run Tests to Verify       │
+                                           │             │           │
+                                        PASS           FAIL          │
+                                           │             │           │
+                                           ▼             └───────────┘
+                                  Create Branch &              (max 5 attempts)
+                                  Commit the Fix
 ```
+
+---
 
 ## How It Works
 
-The agent uses the ReAct framework — a loop of Thought, Action, and Observation:
+The agent is built on the **ReAct framework** (Reasoning + Acting). Instead of generating one fix and hoping it works, the agent thinks step by step:
 
-1. **Thought** — The LLM analyzes the test failures and decides what to do next
-2. **Action** — The LLM calls a tool (run tests, read a file, or write a fix)
-3. **Observation** — The tool result is sent back to the LLM
-4. **Repeat** — The LLM uses the new information to take the next step
+```
+Step 1 → THOUGHT     The LLM reads the test failure and decides what to do
+              ↓
+Step 2 → ACTION      The LLM calls a tool (run tests, read a file, write a fix)
+              ↓
+Step 3 → OBSERVATION  The tool result is sent back to the LLM
+              ↓
+Step 4 → REPEAT       The LLM uses the new information to take the next step
+```
 
-Every tool call passes through a security guardrail layer before execution. The guardrails block dangerous operations like modifying test files, writing malicious code, or accessing paths outside the workspace.
+Every tool call passes through a **security guardrail layer** before it runs. Every action is **logged as structured JSON** for full auditability.
 
-Every action is logged as structured JSON to `logs/agent_runs.jsonl` for full auditability.
+---
 
-## Tech Stack
+## SFT Data Pipeline & Evaluation
 
-- **Python 3.11** — Core language for the agent and all tools
-- **Google Gemini API** (gemini-1.5-flash) — LLM for reasoning and code generation
-- **google-genai SDK** — Official Python client for the Gemini API with function calling support
-- **Docker** — Isolated sandbox environment where the agent reads, writes, and tests code
-- **PyTest** — Test framework used to detect failures and verify fixes
-- **Git** — Version control inside the container for branching and committing fixes
+<p align="center">
+  <img src="assets/sft-pipeline.svg" alt="SFT Data Pipeline" width="780">
+</p>
+
+The agent generates valuable training data every time it runs. A successful fix is a complete example of: "given this error, here is exactly how to diagnose and fix it."
+
+**The pipeline:**
+
+1. **Collect** — `sft_data_collector.py` reads the agent's `.jsonl` logs and extracts successful runs as training pairs
+2. **Export** — `sft_exporter.py` formats the pairs into HuggingFace-compatible JSONL (Alpaca or conversational format)
+3. **Evaluate** — `evaluator.py` scores each run on: pass/fail, attempts used, tool efficiency, and duration
+4. **Fine-tune** — The exported dataset can be used with Unsloth, PEFT, or TRL to train a local model
+
+**Export formats:**
+
+| Format | Schema | Used by |
+|---|---|---|
+| Alpaca | `{"instruction", "input", "output"}` | Unsloth, PEFT, Axolotl, LLaMA-Factory |
+| Conversational | `{"messages": [{role, content}]}` | TRL SFTTrainer, OpenAI fine-tuning |
+
+**Run the pipeline:**
+
+```bash
+# Export SFT training data from agent logs
+python -m agent.main --export-sft
+
+# Export in conversational (chat) format
+python -m agent.main --export-sft --chat
+
+# Full evaluation: reset sandbox → run agent → score → report
+python -m agent.main --evaluate
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  HOST MACHINE                                                       │
+│                                                                     │
+│  agent/main.py                                                      │
+│       │                                                             │
+│       ├── default ──► agent/react_loop.py (fix bugs)                │
+│       ├── --export-sft ──► agent/sft_exporter.py (export data)      │
+│       └── --evaluate ──► agent/evaluator.py (score + report)        │
+│                                                                     │
+│  agent/react_loop.py ◄──── agent/prompt_templates.py                │
+│       │                         (system prompt + tool declarations)  │
+│       │                                                             │
+│       ├── THOUGHT ──► agent/llm_client.py ──► Google Gemini API     │
+│       │                                                             │
+│       ├── ACTION ──► agent/guardrails.py ──► ALLOWED? ──► tools/*   │
+│       │                                      BLOCKED? ──► reason    │
+│       │                                        sent back to LLM     │
+│       ├── OBSERVATION ──► result fed back into conversation         │
+│       │                                                             │
+│       └── FIX VERIFIED ──► agent/git_operations.py                  │
+│                                                                     │
+│  agent/logger.py ──► logs/agent_runs.jsonl                          │
+│       │                     │                                       │
+│       │                     ▼                                       │
+│       │              agent/sft_data_collector.py                    │
+│       │                     │                                       │
+│       │                     ▼                                       │
+│       │              agent/sft_exporter.py ──► data/sft_dataset.jsonl│
+│       │                                                             │
+│       └──────► agent/evaluator.py ──► data/eval_report.json         │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  DOCKER CONTAINER (isolated, no network)                     │   │
+│  │                                                              │   │
+│  │  tools/test_runner.py ──► runs pytest                        │   │
+│  │  tools/file_reader.py ──► reads source files                 │   │
+│  │  tools/file_writer.py ──► writes fixed code                  │   │
+│  │  tools/git_manager.py ──► git add, commit, branch            │   │
+│  │  tools/evaluation_runner.py ──► resets sandbox for eval      │   │
+│  │                                                              │   │
+│  │  sandbox/                                                    │   │
+│  │  ├── calculator.py ............. sample code (intentional bugs)│   │
+│  │  └── tests/test_calculator.py .. 12 tests (6 pass, 6 fail)  │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Features
+
+**Autonomous Debugging** — Detects test failures, reads error logs, analyzes source code, writes fixes, and verifies them in a loop.
+
+**Docker Sandbox** — All code execution happens inside an isolated container with no network access. The host machine is never at risk.
+
+**Security Guardrails** — Every tool call is validated before execution. Blocks path traversal, dangerous code patterns (eval, exec, subprocess), and writes to protected files like tests, config, and agent source code.
+
+**Structured Logging** — Every thought, tool call, and observation is logged as JSON with timestamps and unique run IDs. Full audit trail in `logs/agent_runs.jsonl`.
+
+**Automated Git Workflow** — After a successful fix, the agent creates a branch, generates a conventional commit message (`fix: ...`), and commits the changes.
+
+**SFT Data Pipeline** — Successful fix runs are automatically collected and exported as HuggingFace-compatible training data. Ready for fine-tuning Llama 3, Mistral, or any open-source model.
+
+**Evaluation Framework** — Built-in scoring system measures pass rate, attempt count, tool efficiency, and run duration. Compare Gemini API vs your fine-tuned model.
+
+**Configurable** — Max attempts, model name, log level, container name, and workspace path are all configurable through environment variables.
+
+---
 
 ## Project Structure
 
 ```
-autonomous-devops-agent/
-├── agent/
-│   ├── __init__.py           — Package init
-│   ├── config.py             — Loads settings from .env
-│   ├── guardrails.py         — Security validation for all tool calls
-│   ├── git_operations.py     — High-level git workflow (branch + commit)
-│   ├── llm_client.py         — Manages conversation with Gemini API
-│   ├── logger.py             — Structured JSON logging
-│   ├── main.py               — Entry point (python -m agent.main)
-│   ├── prompt_templates.py   — System prompt and tool declarations
-│   └── react_loop.py         — Core ReAct loop orchestration
-├── tools/
-│   ├── __init__.py           — Package init
-│   ├── test_runner.py        — Runs PyTest inside Docker
-│   ├── file_reader.py        — Reads files inside Docker
-│   ├── file_writer.py        — Writes files inside Docker
-│   └── git_manager.py        — Low-level git commands inside Docker
-├── sandbox/
-│   ├── calculator.py         — Sample code with intentional bugs
+.
+├── agent/                        # Core agent logic
+│   ├── config.py                 # Loads settings from .env
+│   ├── guardrails.py             # Security validation for all tool calls
+│   ├── git_operations.py         # High-level git workflow (branch + commit)
+│   ├── llm_client.py             # Manages conversation with Gemini API
+│   ├── logger.py                 # Structured JSON logging (.jsonl)
+│   ├── main.py                   # Entry point — python -m agent.main
+│   ├── prompt_templates.py       # System prompt and tool declarations
+│   ├── react_loop.py             # Core ReAct loop orchestration
+│   ├── sft_data_collector.py     # Extracts training pairs from logs
+│   ├── sft_exporter.py           # Exports SFT data in HuggingFace format
+│   └── evaluator.py              # Agent scoring and eval reports
+│
+├── tools/                        # Tool functions (execute inside Docker)
+│   ├── test_runner.py            # Runs PyTest inside the container
+│   ├── file_reader.py            # Reads files inside the container
+│   ├── file_writer.py            # Writes files inside the container
+│   ├── git_manager.py            # Low-level git commands inside the container
+│   └── evaluation_runner.py      # Resets sandbox for clean eval runs
+│
+├── sandbox/                      # Sample codebase with intentional bugs
+│   ├── calculator.py             # Broken calculator (the agent fixes this)
 │   └── tests/
-│       ├── __init__.py       — Package init
-│       └── test_calculator.py — 12 tests (6 pass, 6 fail by design)
-├── logs/
-│   └── .gitkeep              — Keeps the empty logs directory in git
-├── .env.example              — Template for environment variables
-├── .gitignore                — Blocks .env, docs/, logs, and caches
-├── Dockerfile                — Builds the sandbox container
-├── docker-compose.yml        — Orchestrates the sandbox service
-├── requirements.txt          — Python dependencies
-└── README.md                 — This file
+│       └── test_calculator.py    # 12 tests — 6 pass, 6 fail by design
+│
+├── data/                         # Generated datasets and reports (gitignored)
+├── logs/                         # Agent run logs (gitignored, except .gitkeep)
+├── assets/                       # SVG diagrams for README
+├── Dockerfile                    # Builds the sandbox container
+├── docker-compose.yml            # Orchestrates the sandbox service
+├── .env.example                  # Template for environment variables
+├── requirements.txt              # Python dependencies
+└── README.md
 ```
 
-## How to Run
+---
+
+## Getting Started
 
 ### Prerequisites
 
 - Python 3.11+
 - Docker and Docker Compose
-- A free Google Gemini API key ([get one here](https://aistudio.google.com/app/apikey))
+- A free Google Gemini API key — [get one here](https://aistudio.google.com/app/apikey)
 
 ### Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/NakuSurrey/autonomous-devops-agent.git
-cd autonomous-devops-agent
+# clone the repo
+git clone https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent.git
+cd The-Autonomous-DevOps-Auto-Fix-Agent
 
-# Create the .env file from the template
+# create the .env file from the template
 cp .env.example .env
 
-# Add your Gemini API key to .env
-# Open .env and replace "your_gemini_api_key_here" with your actual key
+# open .env and add your Gemini API key
+# replace "your_gemini_api_key_here" with your actual key
 
-# Install Python dependencies
+# install Python dependencies
 pip install -r requirements.txt
 
-# Build and start the Docker sandbox
+# build and start the Docker sandbox
 docker-compose up -d --build
 ```
 
@@ -113,30 +263,97 @@ The agent will:
 5. Re-run tests to verify each fix
 6. Create a branch and commit the successful fix
 
-### View Logs
+### Export SFT Training Data
 
-After a run, check the structured log file:
+```bash
+# After running the agent, export the training data
+python -m agent.main --export-sft
+
+# Export in both Alpaca and conversational formats
+python -m agent.main --export-sft --both
+```
+
+### Run Evaluation
+
+```bash
+# Full evaluation: reset sandbox → run agent → score → report
+python -m agent.main --evaluate
+
+# Evaluate without resetting (if sandbox is already in broken state)
+python -m agent.main --evaluate --no-reset
+```
+
+### View Logs
 
 ```bash
 cat logs/agent_runs.jsonl
 ```
 
-Each line is a JSON object with: timestamp, run ID, event type, attempt number, and content.
+Each line is one JSON object with: timestamp, run ID, event type, attempt number, and content.
+
+---
+
+## Environment Variables
+
+| Variable | Default | What it does |
+|---|---|---|
+| `GEMINI_API_KEY` | *(required)* | Your Google Gemini API key |
+| `GEMINI_MODEL` | `gemini-1.5-flash` | Which Gemini model to use |
+| `MAX_FIX_ATTEMPTS` | `5` | How many fix attempts before giving up |
+| `SANDBOX_CONTAINER_NAME` | `devops-agent-sandbox` | Name of the Docker container |
+| `SANDBOX_WORKSPACE_PATH` | `/workspace` | Path inside the container |
+| `LOG_LEVEL` | `INFO` | Logging level: DEBUG, INFO, WARNING, ERROR |
+
+---
 
 ## Security
 
-The agent includes a guardrail layer that validates every tool call before execution:
+The guardrail layer validates every tool call before execution:
 
-- Blocks writes to test files, config files, and agent source code
-- Blocks dangerous content patterns (system imports, eval, exec, subprocess)
-- Blocks path traversal attacks and absolute paths
-- Blocks reads to sensitive files (.env)
-- Validates git commits to ensure only source files are modified
+| Check | What it blocks |
+|---|---|
+| **Path traversal** | `../` and absolute paths — agent stays inside the workspace |
+| **Protected files** | Writes to test files, `.env`, Dockerfile, agent source code |
+| **Dangerous patterns** | `import os`, `eval(`, `exec(`, `subprocess.`, `sys.exit(` and 20+ more |
+| **Sensitive reads** | `.env` file (contains API keys) |
+| **Git validation** | Commits that include protected files in the changeset |
+
+---
+
+## Tech Stack
+
+| Tool | Role |
+|---|---|
+| **Python 3.11** | Core language for the agent and all tools |
+| **Google Gemini API** | LLM for reasoning, code analysis, and fix generation |
+| **google-genai SDK** | Official Python client with function calling support |
+| **Docker** | Isolated sandbox — no network, no host access |
+| **PyTest** | Test framework for failure detection and fix verification |
+| **Git** | Version control for branching and committing fixes |
+| **HuggingFace (JSONL)** | SFT dataset format for model fine-tuning |
+
+---
 
 ## Key Design Decisions
 
-- **Docker isolation** — All code execution happens inside a container with no network access. The host machine is never at risk.
-- **COPY strategy** — Sandbox files are copied into the container at build time, not mounted. The agent cannot access anything outside the container.
-- **ReAct loop** — The agent iterates instead of doing one-shot generation. This lets it learn from failed fix attempts and try different approaches.
-- **Structured logging** — Every action is recorded as JSON for debugging and auditing. Each run gets a unique ID for traceability.
-- **Conventional Commits** — Auto-generated commit messages follow the `fix:` prefix standard.
+- **Docker isolation over local execution** — The agent writes and runs code. Doing that on the host machine is unsafe. Docker gives a throwaway environment with zero risk.
+
+- **COPY strategy over volume mounts** — Sandbox files are copied into the container at build time. The agent physically cannot access host files.
+
+- **ReAct loop over single-shot generation** — One-shot code generation fails often. The loop lets the agent observe its own mistakes and iterate.
+
+- **Guardrails as a separate layer** — Security checks live in their own module, not scattered across tool functions. One place to audit. One place to update.
+
+- **Structured JSON logging** — Plain text logs are hard to search and filter. JSON lines (.jsonl) format makes every event queryable and each run traceable by ID.
+
+- **Conventional Commits** — Auto-generated commit messages follow the `fix:` prefix standard so they integrate with existing CI/CD tooling.
+
+- **Alpaca format for SFT export** — The most widely supported fine-tuning format. Every major tool (Unsloth, PEFT, TRL, Axolotl) accepts it out of the box.
+
+- **Full Docker rebuild for evaluation** — Guarantees a completely clean sandbox state. Slower than git reset, but correctness matters more than speed in benchmarks.
+
+---
+
+<p align="center">
+  Built with Python, Gemini, and Docker.
+</p>
