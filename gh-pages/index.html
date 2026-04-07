@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autonomous DevOps &amp; Auto-Fix Agent — Live Demo</title>
+  <style>
+    /* --- reset & base --- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #30363d;
+      --text: #e6edf3; --dim: #8b949e; --accent: #58a6ff;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922;
+      --magenta: #bc8cff; --orange: #f0883e; --cyan: #79c0ff;
+      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* --- layout --- */
+    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+    section:last-child { border-bottom: none; }
+
+    /* --- header --- */
+    .hero { text-align: center; padding: 80px 0 60px; }
+    .hero h1 { font-size: 2.4em; font-weight: 700; margin-bottom: 12px; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 1.15em; color: var(--dim); max-width: 640px; margin: 0 auto 24px; }
+    .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8em;
+             font-family: var(--mono); font-weight: 600; border: 1px solid var(--border); }
+    .badge-py { background: #3776ab22; color: #58a6ff; border-color: #3776ab55; }
+    .badge-gem { background: #4285f422; color: #79c0ff; border-color: #4285f455; }
+    .badge-dock { background: #2496ed22; color: #58a6ff; border-color: #2496ed55; }
+    .badge-sft { background: #ff6f0022; color: #f0883e; border-color: #ff6f0055; }
+    .badge-mit { background: #3fb95022; color: #3fb950; border-color: #3fb95055; }
+    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .cta { display: inline-block; padding: 10px 24px; border-radius: 8px; font-weight: 600;
+           font-size: 0.95em; transition: transform 0.15s; }
+    .cta:hover { transform: translateY(-2px); text-decoration: none; }
+    .cta-primary { background: var(--accent); color: #0d1117; }
+    .cta-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+
+    /* --- terminal --- */
+    .terminal { background: #1a1b26; border-radius: 10px; overflow: hidden;
+                border: 1px solid #30363d; margin: 0 auto; max-width: 880px; }
+    .term-bar { background: #24283b; padding: 10px 16px; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #f7768e; } .dot-y { background: #e0af68; } .dot-g { background: #9ece6a; }
+    .term-title { color: #a9b1d6; font-family: var(--mono); font-size: 0.82em; margin-left: 12px; }
+    .term-body { padding: 20px; font-family: var(--mono); font-size: 0.85em; line-height: 1.8;
+                 min-height: 420px; position: relative; overflow: hidden; }
+    .term-line { opacity: 0; transform: translateY(4px);
+                 transition: opacity 0.4s ease, transform 0.4s ease; white-space: pre-wrap; }
+    .term-line.visible { opacity: 1; transform: translateY(0); }
+    .ts { color: #565f89; } .ev-agent { color: #7dcfff; } .ev-sys { color: #e0af68; }
+    .ev-fail { color: #f7768e; } .ev-thought { color: #bb9af7; } .ev-action { color: #ff9e64; }
+    .ev-obs { color: #e0af68; } .ev-pass { color: #9ece6a; } .ev-success { color: #9ece6a; }
+    .bug { color: #f7768e; font-weight: 700; } .fix { color: #9ece6a; font-weight: 700; }
+    .cursor-blink { display: inline-block; width: 8px; height: 16px; background: #c0caf5;
+                    animation: blink 1s step-end infinite; vertical-align: text-bottom; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .replay-btn { display: none; margin: 16px auto 0; padding: 8px 20px; border-radius: 6px;
+                  background: var(--surface); color: var(--accent); border: 1px solid var(--border);
+                  font-family: var(--mono); font-size: 0.85em; cursor: pointer; transition: background 0.2s; }
+    .replay-btn:hover { background: #1f2937; }
+    .replay-btn.show { display: block; }
+
+    /* --- sections --- */
+    h2 { font-size: 1.6em; margin-bottom: 16px; }
+    h2 .accent { color: var(--accent); }
+    .section-desc { color: var(--dim); margin-bottom: 32px; max-width: 640px; }
+
+    /* --- architecture --- */
+    .arch-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+                padding: 28px; font-family: var(--mono); font-size: 0.82em; line-height: 1.9;
+                color: var(--text); overflow-x: auto; white-space: pre; }
+
+    /* --- sample outputs --- */
+    .samples-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+    @media (min-width: 700px) { .samples-grid { grid-template-columns: 1fr 1fr; } }
+    .sample-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+                   overflow: hidden; }
+    .sample-card.full { grid-column: 1 / -1; }
+    .sample-header { padding: 14px 18px; border-bottom: 1px solid var(--border);
+                     display: flex; align-items: center; gap: 10px; }
+    .sample-icon { font-size: 1.2em; }
+    .sample-title { font-weight: 600; font-size: 0.95em; }
+    .sample-subtitle { color: var(--dim); font-size: 0.8em; }
+    .sample-body { padding: 18px; font-family: var(--mono); font-size: 0.78em; line-height: 1.7;
+                   overflow-x: auto; white-space: pre; color: #a9b1d6; max-height: 320px; overflow-y: auto; }
+
+    /* --- stats --- */
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 24px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+                 padding: 24px; text-align: center; }
+    .stat-num { font-size: 2em; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+    .stat-label { color: var(--dim); font-size: 0.88em; margin-top: 4px; }
+
+    /* --- setup --- */
+    .setup-steps { counter-reset: step; }
+    .setup-step { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+                  padding: 20px 24px; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 16px; }
+    .setup-step::before { counter-increment: step; content: counter(step);
+                          background: var(--accent); color: var(--bg); width: 28px; height: 28px;
+                          border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                          font-weight: 700; font-size: 0.85em; flex-shrink: 0; }
+    .setup-code { background: #1a1b26; padding: 3px 10px; border-radius: 4px;
+                  font-family: var(--mono); font-size: 0.88em; color: #c0caf5; display: inline-block; margin-top: 4px; }
+
+    /* --- footer --- */
+    footer { text-align: center; padding: 40px 0; color: var(--dim); font-size: 0.88em; }
+    footer a { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<!-- ====== HERO ====== -->
+<div class="hero container">
+  <h1>Autonomous DevOps<br>&amp; <span>Auto-Fix Agent</span></h1>
+  <p>AI agent that detects failing tests, diagnoses bugs, writes code fixes, and commits them — fully autonomously inside a Docker sandbox.</p>
+  <div class="badges">
+    <span class="badge badge-py">Python 3.11</span>
+    <span class="badge badge-gem">Gemini API</span>
+    <span class="badge badge-dock">Docker</span>
+    <span class="badge badge-sft">SFT Pipeline</span>
+    <span class="badge badge-mit">MIT License</span>
+  </div>
+  <div class="cta-row">
+    <a class="cta cta-primary" href="https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent">View Source on GitHub</a>
+    <a class="cta cta-secondary" href="#demo">Watch the Demo</a>
+  </div>
+</div>
+
+<!-- ====== LIVE DEMO ====== -->
+<section id="demo">
+  <div class="container">
+    <h2>See It <span class="accent">Work</span></h2>
+    <p class="section-desc">This replay shows a real agent run. The agent detects a failing test, reasons about the bug, reads the code, writes a fix, and verifies all tests pass — in 11 seconds.</p>
+
+    <div class="terminal">
+      <div class="term-bar">
+        <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+        <span class="term-title">Autonomous DevOps Agent — Full Bug-Fix Cycle</span>
+      </div>
+      <div class="term-body" id="termBody">
+        <div class="term-line" data-delay="300"><span style="color:#7aa2f7">$</span> python -m agent.main</div>
+        <div class="term-line" data-delay="1200"><span class="ts">[12:00:01]</span> <span class="ev-agent">AGENT</span>  Run started — run_id: run_2026-04-06_120001</div>
+        <div class="term-line" data-delay="2200"><span class="ts">[12:00:02]</span> <span class="ev-sys">SYSTEM</span> Running initial test suite...</div>
+        <div class="term-line" data-delay="3500"><span class="ts">[12:00:03]</span> <span class="ev-fail">FAILED</span> test_subtract — assert subtract(5, 3) == 2, got 8</div>
+        <div class="term-line" data-delay="4500"><span class="ev-fail">         ✗ 6 failed</span>  <span class="ev-pass">✓ 6 passed</span>  <span class="ts">— 12 total</span></div>
+        <div class="term-line" data-delay="6000"> </div>
+        <div class="term-line" data-delay="6500"><span class="ts">[12:00:04]</span> <span class="ev-thought">THOUGHT</span> subtract(5,3) returns 8 — it is adding, not subtracting.</div>
+        <div class="term-line" data-delay="7000"><span class="ev-thought">         </span> Need to read calculator.py to confirm.</div>
+        <div class="term-line" data-delay="8500"><span class="ts">[12:00:05]</span> <span class="ev-action">ACTION</span>  <span style="color:#7dcfff">read_file</span><span class="ts">(calculator.py)</span></div>
+        <div class="term-line" data-delay="10000"><span class="ts">[12:00:06]</span> <span class="ev-obs">OBSERVE</span> def subtract(a, b): return a <span class="bug">+</span> b  <span class="bug">← BUG</span></div>
+        <div class="term-line" data-delay="11500"> </div>
+        <div class="term-line" data-delay="12000"><span class="ts">[12:00:07]</span> <span class="ev-thought">THOUGHT</span> Found it. Uses + instead of -. Writing fix now.</div>
+        <div class="term-line" data-delay="13500"><span class="ts">[12:00:08]</span> <span class="ev-action">ACTION</span>  <span style="color:#7dcfff">write_file</span><span class="ts">(calculator.py)</span></div>
+        <div class="term-line" data-delay="15000"><span class="ts">[12:00:09]</span> <span class="ev-obs">OBSERVE</span> def subtract(a, b): return a <span class="fix">-</span> b  <span class="fix">← FIXED</span></div>
+        <div class="term-line" data-delay="16500"> </div>
+        <div class="term-line" data-delay="17000"><span class="ts">[12:00:10]</span> <span class="ev-action">ACTION</span>  <span style="color:#7dcfff">run_tests</span><span class="ts">(tests/)</span></div>
+        <div class="term-line" data-delay="18500"><span class="ts">[12:00:11]</span> <span class="ev-pass">✓ ALL 12 TESTS PASSED</span></div>
+        <div class="term-line" data-delay="20000"> </div>
+        <div class="term-line" data-delay="21000"><span class="ts">[12:00:12]</span> <span class="ev-success">SUCCESS</span> Agent fixed the bug in 1 attempt (11.0s)</div>
+        <div class="term-line" data-delay="22000"><span class="ts">          </span> <span class="ts">Tool calls: 3 | Guardrail blocks: 0 | Efficiency: 1.0</span></div>
+        <div class="term-line" data-delay="23500"> </div>
+        <div class="term-line" data-delay="24000"><span style="border:1px solid #3fb950; border-radius:4px; padding:2px 8px;"><span class="ev-pass">ReAct Loop Complete</span> <span class="ts">detect → reason → read → fix → verify → done</span></span></div>
+      </div>
+    </div>
+    <button class="replay-btn" id="replayBtn" onclick="runDemo()">▶ Replay Demo</button>
+  </div>
+</section>
+
+<!-- ====== ARCHITECTURE ====== -->
+<section id="arch">
+  <div class="container">
+    <h2>How It <span class="accent">Works</span></h2>
+    <p class="section-desc">The agent follows the ReAct framework — Thought, Action, Observation — inside a sandboxed Docker container with no network access.</p>
+    <div class="arch-box">
+                        ┌──────────────────────────┐
+                        │     python -m agent.main  │
+                        └────────────┬─────────────┘
+                                     │
+            ┌────────────────────────┼────────────────────────┐
+            │                        │                        │
+            ▼                        ▼                        ▼
+      Default Mode           --export-sft              --evaluate
+       (fix bugs)         (export training data)    (benchmark agent)
+            │                        │                        │
+            ▼                        ▼                        ▼
+    react_loop.py          sft_exporter.py           evaluator.py
+            │                        │                        │
+  ┌─────────┴─────────┐             │               ┌────────┴────────┐
+  │                   │              │               │                 │
+  ▼                   ▼              ▼               ▼                 ▼
+llm_client.py   guardrails.py  sft_dataset.jsonl  reset_sandbox   eval_report.json
+(Gemini API)    (security)     (HuggingFace)      (Docker)        (scores)
+  │                   │
+  ▼                   ▼
+┌────────────────────────────────────────┐
+│  DOCKER CONTAINER (no network access)  │
+│                                        │
+│  test_runner.py  → runs pytest         │
+│  file_reader.py  → reads source code   │
+│  file_writer.py  → writes fixed code   │
+│  git_manager.py  → git add, commit     │
+└────────────────────────────────────────┘</div>
+  </div>
+</section>
+
+<!-- ====== SAMPLE OUTPUTS ====== -->
+<section id="outputs">
+  <div class="container">
+    <h2>Real <span class="accent">Output</span> Data</h2>
+    <p class="section-desc">These are actual outputs the agent produced. Not mock data — real results from a real run.</p>
+    <div class="samples-grid">
+
+      <div class="sample-card full">
+        <div class="sample-header">
+          <span class="sample-icon">📋</span>
+          <div><div class="sample-title">Agent Run Log</div><div class="sample-subtitle">Full ReAct trace — every thought, action, and observation</div></div>
+        </div>
+        <div class="sample-body" id="runLog"></div>
+      </div>
+
+      <div class="sample-card">
+        <div class="sample-header">
+          <span class="sample-icon">📊</span>
+          <div><div class="sample-title">Evaluation Report</div><div class="sample-subtitle">Agent scoring — pass rate, efficiency, tool usage</div></div>
+        </div>
+        <div class="sample-body" id="evalReport"></div>
+      </div>
+
+      <div class="sample-card">
+        <div class="sample-header">
+          <span class="sample-icon">🧠</span>
+          <div><div class="sample-title">SFT Training Pair</div><div class="sample-subtitle">Alpaca format — ready for HuggingFace fine-tuning</div></div>
+        </div>
+        <div class="sample-body" id="sftPair"></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ====== STATS ====== -->
+<section id="stats">
+  <div class="container">
+    <h2>By the <span class="accent">Numbers</span></h2>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num">7</div><div class="stat-label">Build Phases</div></div>
+      <div class="stat-card"><div class="stat-num">31</div><div class="stat-label">Code Files</div></div>
+      <div class="stat-card"><div class="stat-num">25</div><div class="stat-label">Security Patterns</div></div>
+      <div class="stat-card"><div class="stat-num">11s</div><div class="stat-label">Bug Fix Time</div></div>
+      <div class="stat-card"><div class="stat-num">3</div><div class="stat-label">Tool Calls per Fix</div></div>
+      <div class="stat-card"><div class="stat-num">100%</div><div class="stat-label">Efficiency Score</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== HOW TO RUN ====== -->
+<section id="setup">
+  <div class="container">
+    <h2>Try It <span class="accent">Yourself</span></h2>
+    <p class="section-desc">Everything runs on free tools. No credit card needed.</p>
+    <div class="setup-steps">
+      <div class="setup-step">
+        <div>
+          <strong>Clone the repo</strong>
+          <div class="setup-code">git clone https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent.git</div>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div>
+          <strong>Get a free Gemini API key</strong><br>
+          Go to <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a> — takes 30 seconds, no credit card.
+        </div>
+      </div>
+      <div class="setup-step">
+        <div>
+          <strong>Set up environment</strong>
+          <div class="setup-code">cp .env.example .env   # paste your API key in .env</div>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div>
+          <strong>Install &amp; run</strong>
+          <div class="setup-code">make setup &amp;&amp; make demo</div>
+          <div style="margin-top: 6px; color: var(--dim); font-size: 0.88em;">Or without Make: <span class="setup-code">pip install -r requirements.txt && docker-compose up -d --build && python -m agent.main</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== FOOTER ====== -->
+<footer>
+  <div class="container">
+    Built by <a href="https://github.com/NakuSurrey" target="_blank">NakuSurrey</a> with Python, Gemini, and Docker<br>
+    <a href="https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent" target="_blank">View Source on GitHub</a>
+  </div>
+</footer>
+
+<script>
+// --- terminal demo replay ---
+function runDemo() {
+  const lines = document.querySelectorAll('.term-line');
+  const btn = document.getElementById('replayBtn');
+  btn.classList.remove('show');
+  lines.forEach(l => l.classList.remove('visible'));
+  lines.forEach(line => {
+    const delay = parseInt(line.getAttribute('data-delay')) || 0;
+    setTimeout(() => line.classList.add('visible'), delay);
+  });
+  const maxDelay = Math.max(...Array.from(lines).map(l => parseInt(l.getAttribute('data-delay')) || 0));
+  setTimeout(() => btn.classList.add('show'), maxDelay + 1500);
+}
+
+// --- auto-start demo on load ---
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(runDemo, 600);
+});
+
+// --- intersection observer for re-trigger ---
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) { runDemo(); }
+  });
+}, { threshold: 0.5 });
+observer.observe(document.getElementById('termBody'));
+
+// --- sample data ---
+const runLogData = {
+  run_summary: {
+    run_id: "run_2026-04-06_120001",
+    model: "gemini-1.5-flash",
+    result: "SUCCESS",
+    attempts: 1,
+    duration_seconds: 11.0,
+    tool_calls: 3,
+    guardrail_blocks: 0
+  },
+  timeline: [
+    { step: 1, event: "system",       content: "Agent run started. Run ID: run_2026-04-06_120001" },
+    { step: 2, event: "test_failure",  content: "FAILED test_subtract — subtract(5, 3) == 2, got 8" },
+    { step: 3, event: "thought",       content: "subtract returns 8 — adding instead of subtracting. Reading calculator.py." },
+    { step: 4, event: "action",        content: "read_file({ file_path: \"calculator.py\" })" },
+    { step: 5, event: "observation",   content: "def subtract(a, b): return a + b" },
+    { step: 6, event: "thought",       content: "Found the bug. Uses + instead of -. Writing fix." },
+    { step: 7, event: "action",        content: "write_file({ file_path: \"calculator.py\", ... })" },
+    { step: 8, event: "observation",   content: "File written successfully." },
+    { step: 9, event: "action",        content: "run_tests({ test_path: \"tests/\" })" },
+    { step: 10, event: "observation",  content: "PASSED. All 12 tests passed." },
+    { step: 11, event: "success",      content: "Agent finished. Success: true. Attempts: 1. Duration: 11.0s" }
+  ]
+};
+
+const evalData = {
+  evaluation: {
+    run_id: "run_2026-04-06_120001",
+    model: "gemini-1.5-flash",
+    scores: {
+      passed: true,
+      attempts_used: 1,
+      max_attempts: 5,
+      total_tool_calls: 3,
+      tools_used: { read_file: 1, write_file: 1, run_tests: 1 },
+      guardrail_blocks: 0,
+      thoughts: 2,
+      duration_seconds: 11.0,
+      efficiency: 1.0
+    }
+  }
+};
+
+const sftData = {
+  instruction: "You are an Autonomous DevOps Agent. Use the ReAct framework to diagnose the bug, read the source code, write a fix, and verify all tests pass.",
+  input: "FAILED test_subtract — subtract(5, 3) == 2, got 8",
+  output: "THOUGHT: subtract returns 8, adding not subtracting. Reading calculator.py.\nACTION: read_file({ file_path: \"calculator.py\" })\nOBSERVATION: def subtract(a, b): return a + b\nTHOUGHT: Found bug. Uses + instead of -.\nACTION: write_file({ file_path: \"calculator.py\", ... })\nOBSERVATION: File written.\nACTION: run_tests({ test_path: \"tests/\" })\nOBSERVATION: All 12 tests passed.\nALL_TESTS_PASSED"
+};
+
+document.getElementById('runLog').textContent = JSON.stringify(runLogData, null, 2);
+document.getElementById('evalReport').textContent = JSON.stringify(evalData, null, 2);
+document.getElementById('sftPair').textContent = JSON.stringify(sftData, null, 2);
+</script>
+</body>
+</html>

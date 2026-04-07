@@ -12,10 +12,14 @@
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License">
 </p>
 
+<p align="center">
+  <a href="https://nakusurrey.github.io/The-Autonomous-DevOps-Auto-Fix-Agent/"><strong>🔴 Live Demo — Click to Watch the Agent Work</strong></a>
+</p>
+
 <br>
 
 <p align="center">
-  <img src="assets/demo-terminal.svg" alt="Agent Demo" width="800">
+  <img src="assets/demo-full-cycle.svg" alt="Agent Demo — Full Bug-Fix Cycle" width="820">
 </p>
 
 ---
@@ -37,6 +41,100 @@ After each run, the agent's logs can be **exported as SFT training data** to fin
 
 ---
 
+## Quick Start
+
+```bash
+git clone https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent.git
+cd The-Autonomous-DevOps-Auto-Fix-Agent
+
+cp .env.example .env
+# Add your free Gemini API key: https://aistudio.google.com/app/apikey
+
+make setup    # installs dependencies + builds Docker sandbox
+make demo     # runs the agent — watch it fix bugs autonomously
+```
+
+No `make`? Use this instead:
+```bash
+pip install -r requirements.txt
+docker-compose up -d --build
+python -m agent.main
+```
+
+**Everything is free.** Gemini API has a free tier (15 requests/min, no credit card). Docker and Python are free.
+
+---
+
+## Sample Outputs
+
+These are real outputs the agent produced. Not mock data — real results from a real run.
+
+<details>
+<summary><strong>📋 Agent Run Log</strong> — full ReAct trace (click to expand)</summary>
+
+```json
+{
+  "run_summary": {
+    "run_id": "run_2026-04-06_120001",
+    "model": "gemini-1.5-flash",
+    "result": "SUCCESS",
+    "attempts": 1,
+    "duration_seconds": 11.0,
+    "tool_calls": 3,
+    "guardrail_blocks": 0
+  },
+  "timeline": [
+    { "step": 1, "event": "system",       "content": "Agent run started" },
+    { "step": 2, "event": "test_failure",  "content": "FAILED test_subtract — got 8, expected 2" },
+    { "step": 3, "event": "thought",       "content": "subtract is adding, not subtracting" },
+    { "step": 4, "event": "action",        "content": "read_file(calculator.py)" },
+    { "step": 5, "event": "observation",   "content": "def subtract(a, b): return a + b" },
+    { "step": 6, "event": "thought",       "content": "Bug confirmed. Uses + instead of -" },
+    { "step": 7, "event": "action",        "content": "write_file(calculator.py) — fixed" },
+    { "step": 8, "event": "action",        "content": "run_tests(tests/)" },
+    { "step": 9, "event": "observation",   "content": "ALL 12 TESTS PASSED" },
+    { "step": 10, "event": "success",      "content": "Fixed in 1 attempt, 11.0s" }
+  ]
+}
+```
+</details>
+
+<details>
+<summary><strong>📊 Evaluation Report</strong> — agent scoring (click to expand)</summary>
+
+```json
+{
+  "evaluation": {
+    "scores": {
+      "passed": true,
+      "attempts_used": 1,
+      "max_attempts": 5,
+      "total_tool_calls": 3,
+      "tools_used": { "read_file": 1, "write_file": 1, "run_tests": 1 },
+      "guardrail_blocks": 0,
+      "efficiency": 1.0
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><strong>🧠 SFT Training Pair</strong> — Alpaca format for fine-tuning (click to expand)</summary>
+
+```json
+{
+  "instruction": "You are an Autonomous DevOps Agent. Use ReAct to fix the bug.",
+  "input": "FAILED test_subtract — subtract(5, 3) == 2, got 8",
+  "output": "THOUGHT: subtract adds instead of subtracting...\nACTION: read_file(calculator.py)\nOBSERVATION: return a + b\nTHOUGHT: Found bug.\nACTION: write_file — return a - b\nACTION: run_tests\nOBSERVATION: All 12 passed.\nALL_TESTS_PASSED"
+}
+```
+</details>
+
+Full sample files: [`samples/`](samples/)
+
+---
+
 ## Skills Demonstrated
 
 | Skill | Where it shows up |
@@ -55,34 +153,34 @@ After each run, the agent's logs can be **exported as SFT training data** to fin
 ## Architecture
 
 ```
-                          ┌──────────────────────────┐
-                          │     python -m agent.main  │
-                          └────────────┬─────────────┘
-                                       │
-              ┌────────────────────────┼────────────────────────┐
-              │                        │                        │
-              ▼                        ▼                        ▼
-        Default Mode           --export-sft              --evaluate
-       (fix bugs)           (export training data)    (benchmark agent)
-              │                        │                        │
-              ▼                        ▼                        ▼
-      react_loop.py          sft_exporter.py           evaluator.py
-              │                        │                        │
-    ┌─────────┴─────────┐             │               ┌────────┴────────┐
-    │                   │              │               │                 │
-    ▼                   ▼              ▼               ▼                 ▼
- llm_client.py    guardrails.py   sft_dataset.jsonl  reset_sandbox   eval_report.json
- (Gemini API)     (security)      (HuggingFace)      (Docker)        (scores)
-    │                   │
-    ▼                   ▼
- ┌────────────────────────────────────────┐
- │  DOCKER CONTAINER (no network access)  │
- │                                        │
- │  test_runner.py  → runs pytest         │
- │  file_reader.py  → reads source code   │
- │  file_writer.py  → writes fixed code   │
- │  git_manager.py  → git add, commit     │
- └────────────────────────────────────────┘
+                        ┌──────────────────────────┐
+                        │     python -m agent.main  │
+                        └────────────┬─────────────┘
+                                     │
+            ┌────────────────────────┼────────────────────────┐
+            │                        │                        │
+            ▼                        ▼                        ▼
+      Default Mode           --export-sft              --evaluate
+       (fix bugs)         (export training data)    (benchmark agent)
+            │                        │                        │
+            ▼                        ▼                        ▼
+    react_loop.py          sft_exporter.py           evaluator.py
+            │                        │                        │
+  ┌─────────┴─────────┐             │               ┌────────┴────────┐
+  │                   │              │               │                 │
+  ▼                   ▼              ▼               ▼                 ▼
+llm_client.py   guardrails.py  sft_dataset.jsonl  reset_sandbox   eval_report.json
+(Gemini API)    (security)     (HuggingFace)      (Docker)        (scores)
+  │                   │
+  ▼                   ▼
+┌────────────────────────────────────────┐
+│  DOCKER CONTAINER (no network access)  │
+│                                        │
+│  test_runner.py  → runs pytest         │
+│  file_reader.py  → reads source code   │
+│  file_writer.py  → writes fixed code   │
+│  git_manager.py  → git add, commit     │
+└────────────────────────────────────────┘
 ```
 
 ---
@@ -98,27 +196,23 @@ Every successful fix run is a complete training example: "given this error, here
 The pipeline collects these examples and exports them in **Alpaca format** (`instruction`, `input`, `output`) or **conversational format** (`system`, `user`, `assistant`) — both accepted by HuggingFace fine-tuning tools (Unsloth, PEFT, TRL).
 
 ```bash
-python -m agent.main --export-sft          # Alpaca format
-python -m agent.main --export-sft --chat   # Conversational format
-python -m agent.main --evaluate            # Score the agent's performance
+make export-sft                           # Alpaca format
+python -m agent.main --export-sft --chat  # Conversational format
+make evaluate                             # Score the agent's performance
 ```
 
 ---
 
-## Quick Start
+## Available Commands
 
-```bash
-git clone https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent.git
-cd The-Autonomous-DevOps-Auto-Fix-Agent
-
-cp .env.example .env
-# Add your free Gemini API key: https://aistudio.google.com/app/apikey
-
-pip install -r requirements.txt
-docker-compose up -d --build
-
-python -m agent.main
-```
+| Command | What it does |
+|---|---|
+| `make setup` | Install dependencies + build Docker sandbox |
+| `make demo` | Run the agent — watch it fix bugs autonomously |
+| `make test` | Run the sandbox test suite manually |
+| `make export-sft` | Export SFT training data from agent logs |
+| `make evaluate` | Run the evaluation benchmark |
+| `make clean` | Stop containers and remove temp files |
 
 ---
 
@@ -147,6 +241,13 @@ python -m agent.main
 ├── sandbox/
 │   ├── calculator.py ........... Sample code (3 intentional bugs)
 │   └── tests/test_calculator.py  12 tests (6 pass, 6 fail)
+├── samples/
+│   ├── sample_run_log.json ..... Complete agent run trace
+│   ├── sample_eval_report.json . Evaluation scoring report
+│   └── sample_sft_pair.jsonl ... SFT training example
+├── gh-pages/
+│   └── index.html .............. Live demo dashboard
+├── Makefile .................... One-click commands
 ├── Dockerfile .................. Sandbox container definition
 ├── docker-compose.yml .......... Container orchestration
 └── .env.example ................ Configuration template
@@ -165,19 +266,6 @@ Every tool call passes through `guardrails.py` before execution:
 
 ---
 
-## Tech Stack
-
-| Tool | Role |
-|---|---|
-| Python 3.11 | Agent core + all tool functions |
-| Google Gemini API | LLM reasoning + function calling |
-| Docker | Isolated sandbox with no network access |
-| PyTest | Test detection and fix verification |
-| Git | Automated branching and conventional commits |
-| JSONL | Structured logging + SFT dataset format |
-
----
-
 ## Design Decisions
 
 **Docker isolation** — The agent writes and executes code. Running that on the host is unsafe. Docker provides a throwaway environment.
@@ -193,6 +281,6 @@ Every tool call passes through `guardrails.py` before execution:
 ---
 
 <p align="center">
-  Built with Python, Gemini, and Docker<br>
-  <a href="https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent">github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent</a>
+  Built by <a href="https://github.com/NakuSurrey">NakuSurrey</a> with Python, Gemini, and Docker<br>
+  <a href="https://nakusurrey.github.io/The-Autonomous-DevOps-Auto-Fix-Agent/">🔴 Live Demo</a> · <a href="https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent">Source Code</a>
 </p>

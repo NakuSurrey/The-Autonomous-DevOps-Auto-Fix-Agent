@@ -1,0 +1,28 @@
+{
+  "evaluation": {
+    "run_id": "run_2026-04-06_120001",
+    "model": "gemini-1.5-flash",
+    "evaluated_at": "2026-04-06T12:01:00Z",
+    "scores": {
+      "passed": true,
+      "attempts_used": 1,
+      "max_attempts": 5,
+      "total_tool_calls": 3,
+      "tools_used": {
+        "read_file": 1,
+        "write_file": 1,
+        "run_tests": 1
+      },
+      "guardrail_blocks": 0,
+      "thoughts": 2,
+      "duration_seconds": 11.0,
+      "efficiency": 1.0
+    },
+    "interpretation": {
+      "efficiency_note": "1.0 = agent used the minimum number of attempts (1 out of 5 allowed)",
+      "tool_usage_note": "3 tool calls is optimal for a single-bug fix: read → write → verify",
+      "guardrail_note": "0 blocks means the agent never tried an unsafe operation",
+      "overall": "The agent diagnosed and fixed the bug in a single pass with no wasted actions"
+    }
+  }
+}

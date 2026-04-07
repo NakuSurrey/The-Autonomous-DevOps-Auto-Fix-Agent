@@ -1,0 +1,86 @@
+{
+  "run_summary": {
+    "run_id": "run_2026-04-06_120001",
+    "model": "gemini-1.5-flash",
+    "result": "SUCCESS",
+    "attempts": 1,
+    "max_attempts": 5,
+    "duration_seconds": 11.0,
+    "tool_calls": 3,
+    "guardrail_blocks": 0
+  },
+  "timeline": [
+    {
+      "step": 1,
+      "event": "system",
+      "timestamp": "2026-04-06T12:00:01Z",
+      "content": "Agent run started. Run ID: run_2026-04-06_120001"
+    },
+    {
+      "step": 2,
+      "event": "test_failure",
+      "timestamp": "2026-04-06T12:00:03Z",
+      "content": "FAILED tests/test_calculator.py::test_subtract - assert subtract(5, 3) == 2, got 8"
+    },
+    {
+      "step": 3,
+      "event": "thought",
+      "timestamp": "2026-04-06T12:00:04Z",
+      "content": "The test shows subtract(5, 3) expected 2 but got 8. That means subtract is adding instead of subtracting. I need to read calculator.py to confirm."
+    },
+    {
+      "step": 4,
+      "event": "action",
+      "timestamp": "2026-04-06T12:00:05Z",
+      "tool": "read_file",
+      "args": { "file_path": "calculator.py" },
+      "content": "LLM called: read_file({\"file_path\": \"calculator.py\"})"
+    },
+    {
+      "step": 5,
+      "event": "observation",
+      "timestamp": "2026-04-06T12:00:06Z",
+      "content": "Contents of calculator.py: def subtract(a, b): return a + b"
+    },
+    {
+      "step": 6,
+      "event": "thought",
+      "timestamp": "2026-04-06T12:00:07Z",
+      "content": "Found the bug. subtract uses + instead of -. Writing the fix now."
+    },
+    {
+      "step": 7,
+      "event": "action",
+      "timestamp": "2026-04-06T12:00:08Z",
+      "tool": "write_file",
+      "args": { "file_path": "calculator.py", "content": "def subtract(a, b): return a - b" },
+      "content": "LLM called: write_file({\"file_path\": \"calculator.py\", ...})"
+    },
+    {
+      "step": 8,
+      "event": "observation",
+      "timestamp": "2026-04-06T12:00:09Z",
+      "content": "File written successfully."
+    },
+    {
+      "step": 9,
+      "event": "action",
+      "timestamp": "2026-04-06T12:00:10Z",
+      "tool": "run_tests",
+      "args": { "test_path": "tests/" },
+      "content": "LLM called: run_tests({\"test_path\": \"tests/\"})"
+    },
+    {
+      "step": 10,
+      "event": "observation",
+      "timestamp": "2026-04-06T12:00:11Z",
+      "content": "Test result: PASSED. All 12 tests passed."
+    },
+    {
+      "step": 11,
+      "event": "success",
+      "timestamp": "2026-04-06T12:00:12Z",
+      "content": "Agent run finished. Success: True. Attempts: 1. Duration: 11.0s"
+    }
+  ]
+}

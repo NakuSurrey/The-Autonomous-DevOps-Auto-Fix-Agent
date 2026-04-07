@@ -1,0 +1,177 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 620">
+  <style>
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    @keyframes l1  { 0%,3%{opacity:0} 4%,100%{opacity:1} }
+    @keyframes l2  { 0%,8%{opacity:0} 9%,100%{opacity:1} }
+    @keyframes l3  { 0%,14%{opacity:0} 15%,100%{opacity:1} }
+    @keyframes l4  { 0%,20%{opacity:0} 21%,100%{opacity:1} }
+    @keyframes l5  { 0%,28%{opacity:0} 29%,100%{opacity:1} }
+    @keyframes l6  { 0%,35%{opacity:0} 36%,100%{opacity:1} }
+    @keyframes l7  { 0%,42%{opacity:0} 43%,100%{opacity:1} }
+    @keyframes l8  { 0%,50%{opacity:0} 51%,100%{opacity:1} }
+    @keyframes l9  { 0%,58%{opacity:0} 59%,100%{opacity:1} }
+    @keyframes l10 { 0%,65%{opacity:0} 66%,100%{opacity:1} }
+    @keyframes l11 { 0%,72%{opacity:0} 73%,100%{opacity:1} }
+    @keyframes l12 { 0%,80%{opacity:0} 81%,100%{opacity:1} }
+    @keyframes l13 { 0%,88%{opacity:0} 89%,100%{opacity:1} }
+    @keyframes l14 { 0%,93%{opacity:0} 94%,100%{opacity:1} }
+    .term-bg { fill: #1a1b26; }
+    .term-bar { fill: #24283b; }
+    .title-text { fill: #a9b1d6; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 13px; }
+    .t { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 13px; }
+    .prompt { fill: #7aa2f7; }
+    .cmd { fill: #c0caf5; }
+    .green { fill: #9ece6a; }
+    .red { fill: #f7768e; }
+    .yellow { fill: #e0af68; }
+    .cyan { fill: #7dcfff; }
+    .dim { fill: #565f89; }
+    .white { fill: #c0caf5; }
+    .magenta { fill: #bb9af7; }
+    .orange { fill: #ff9e64; }
+    .dot-r { fill: #f7768e; }
+    .dot-y { fill: #e0af68; }
+    .dot-g { fill: #9ece6a; }
+    .cursor { fill: #c0caf5; animation: blink 1s step-end infinite; }
+    .l1  { opacity: 0; animation: l1  30s infinite; }
+    .l2  { opacity: 0; animation: l2  30s infinite; }
+    .l3  { opacity: 0; animation: l3  30s infinite; }
+    .l4  { opacity: 0; animation: l4  30s infinite; }
+    .l5  { opacity: 0; animation: l5  30s infinite; }
+    .l6  { opacity: 0; animation: l6  30s infinite; }
+    .l7  { opacity: 0; animation: l7  30s infinite; }
+    .l8  { opacity: 0; animation: l8  30s infinite; }
+    .l9  { opacity: 0; animation: l9  30s infinite; }
+    .l10 { opacity: 0; animation: l10 30s infinite; }
+    .l11 { opacity: 0; animation: l11 30s infinite; }
+    .l12 { opacity: 0; animation: l12 30s infinite; }
+    .l13 { opacity: 0; animation: l13 30s infinite; }
+    .l14 { opacity: 0; animation: l14 30s infinite; }
+  </style>
+
+  <!-- terminal window -->
+  <rect class="term-bg" x="0" y="0" width="850" height="620" rx="10"/>
+  <rect class="term-bar" x="0" y="0" width="850" height="36" rx="10"/>
+  <rect class="term-bg" x="0" y="26" width="850" height="10"/>
+  <circle class="dot-r" cx="20" cy="18" r="6"/>
+  <circle class="dot-y" cx="40" cy="18" r="6"/>
+  <circle class="dot-g" cx="60" cy="18" r="6"/>
+  <text class="title-text" x="425" y="22" text-anchor="middle">Autonomous DevOps Agent — Live Bug-Fix Cycle</text>
+
+  <!-- line 1: command -->
+  <g class="l1">
+    <text class="t prompt" x="20" y="65">$</text>
+    <text class="t cmd" x="35" y="65">python -m agent.main</text>
+  </g>
+
+  <!-- line 2: startup -->
+  <g class="l2">
+    <text class="t dim" x="20" y="90">[12:00:01]</text>
+    <text class="t cyan" x="120" y="90">AGENT</text>
+    <text class="t white" x="175" y="90">Run started — run_id: run_2026-04-06_120001</text>
+  </g>
+
+  <!-- line 3: running tests -->
+  <g class="l3">
+    <text class="t dim" x="20" y="115">[12:00:02]</text>
+    <text class="t yellow" x="120" y="115">SYSTEM</text>
+    <text class="t white" x="190" y="115">Running initial test suite...</text>
+  </g>
+
+  <!-- line 4: test failure -->
+  <g class="l4">
+    <text class="t dim" x="20" y="140">[12:00:03]</text>
+    <text class="t red" x="120" y="140">FAILED</text>
+    <text class="t white" x="185" y="140">test_subtract — assert subtract(5, 3) == 2, got 8</text>
+  </g>
+
+  <!-- line 5: 6 failures total -->
+  <g class="l5">
+    <text class="t red" x="120" y="165">✗ 6 failed</text>
+    <text class="t green" x="220" y="165">✓ 6 passed</text>
+    <text class="t dim" x="330" y="165">— 12 total</text>
+  </g>
+
+  <!-- line 6: thought 1 -->
+  <g class="l6">
+    <text class="t dim" x="20" y="200">[12:00:04]</text>
+    <text class="t magenta" x="120" y="200">THOUGHT</text>
+    <text class="t white" x="200" y="200">subtract(5,3) returns 8 — it is adding, not</text>
+    <text class="t white" x="200" y="218">subtracting. Need to read calculator.py.</text>
+  </g>
+
+  <!-- line 7: action read -->
+  <g class="l7">
+    <text class="t dim" x="20" y="250">[12:00:05]</text>
+    <text class="t orange" x="120" y="250">ACTION</text>
+    <text class="t cyan" x="195" y="250">read_file</text>
+    <text class="t dim" x="280" y="250">(calculator.py)</text>
+  </g>
+
+  <!-- line 8: observation -->
+  <g class="l8">
+    <text class="t dim" x="20" y="275">[12:00:06]</text>
+    <text class="t yellow" x="120" y="275">OBSERVE</text>
+    <text class="t white" x="200" y="275">def subtract(a, b): return a</text>
+    <text class="t red" x="480" y="275">+</text>
+    <text class="t white" x="495" y="275">b</text>
+    <text class="t red" x="530" y="275">← BUG</text>
+  </g>
+
+  <!-- line 9: thought 2 -->
+  <g class="l9">
+    <text class="t dim" x="20" y="310">[12:00:07]</text>
+    <text class="t magenta" x="120" y="310">THOUGHT</text>
+    <text class="t white" x="200" y="310">Found it. Uses + instead of -. Writing fix.</text>
+  </g>
+
+  <!-- line 10: action write -->
+  <g class="l10">
+    <text class="t dim" x="20" y="345">[12:00:08]</text>
+    <text class="t orange" x="120" y="345">ACTION</text>
+    <text class="t cyan" x="195" y="345">write_file</text>
+    <text class="t dim" x="285" y="345">(calculator.py)</text>
+  </g>
+
+  <!-- line 11: fixed code -->
+  <g class="l11">
+    <text class="t dim" x="20" y="370">[12:00:09]</text>
+    <text class="t yellow" x="120" y="370">OBSERVE</text>
+    <text class="t white" x="200" y="370">def subtract(a, b): return a</text>
+    <text class="t green" x="480" y="370">-</text>
+    <text class="t white" x="495" y="370">b</text>
+    <text class="t green" x="530" y="370">← FIXED</text>
+  </g>
+
+  <!-- line 12: re-run tests -->
+  <g class="l12">
+    <text class="t dim" x="20" y="405">[12:00:10]</text>
+    <text class="t orange" x="120" y="405">ACTION</text>
+    <text class="t cyan" x="195" y="405">run_tests</text>
+    <text class="t dim" x="280" y="405">(tests/)</text>
+  </g>
+
+  <!-- line 13: all pass -->
+  <g class="l13">
+    <text class="t dim" x="20" y="440">[12:00:11]</text>
+    <text class="t green" x="120" y="440">✓ ALL 12 TESTS PASSED</text>
+  </g>
+
+  <!-- line 14: success -->
+  <g class="l14">
+    <text class="t dim" x="20" y="480">[12:00:12]</text>
+    <text class="t green" x="120" y="480">SUCCESS</text>
+    <text class="t white" x="200" y="480">Agent fixed the bug in 1 attempt (11.0s)</text>
+    <text class="t dim" x="120" y="505">Tool calls: 3 | Guardrail blocks: 0 | Efficiency: 1.0</text>
+
+    <!-- summary box -->
+    <rect x="100" y="525" width="650" height="70" rx="6" fill="none" stroke="#9ece6a" stroke-width="1.5" opacity="0.6"/>
+    <text class="t green" x="125" y="548">ReAct Loop Complete</text>
+    <text class="t dim" x="125" y="570">detect failure → reason about bug → read code → write fix → verify → done</text>
+  </g>
+
+  <!-- blinking cursor -->
+  <g class="l14">
+    <rect class="cursor" x="20" y="595" width="8" height="15" rx="1"/>
+  </g>
+</svg>
