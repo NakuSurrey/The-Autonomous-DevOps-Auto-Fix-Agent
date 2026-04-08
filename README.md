@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://nakusurrey.github.io/The-Autonomous-DevOps-Auto-Fix-Agent/"><strong>🔴 Live Demo — Click to Watch the Agent Work</strong></a>
+  <a href="https://nakusurrey-devops-agent.streamlit.app/"><strong>🔴 Live Demo — Click to Watch the Agent Work</strong></a>
 </p>
 
 <br>
@@ -245,8 +245,8 @@ make evaluate                             # Score the agent's performance
 │   ├── sample_run_log.json ..... Complete agent run trace
 │   ├── sample_eval_report.json . Evaluation scoring report
 │   └── sample_sft_pair.jsonl ... SFT training example
-├── gh-pages/
-│   └── index.html .............. Live demo dashboard
+├── app.py ...................... Streamlit live demo (Demo + Live modes)
+├── index.html .................. Static dashboard (GitHub Pages backup)
 ├── Makefile .................... One-click commands
 ├── Dockerfile .................. Sandbox container definition
 ├── docker-compose.yml .......... Container orchestration
@@ -282,5 +282,5 @@ Every tool call passes through `guardrails.py` before execution:
 
 <p align="center">
   Built by <a href="https://github.com/NakuSurrey">NakuSurrey</a> with Python, Gemini, and Docker<br>
-  <a href="https://nakusurrey.github.io/The-Autonomous-DevOps-Auto-Fix-Agent/">🔴 Live Demo</a> · <a href="https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent">Source Code</a>
+  <a href="https://nakusurrey-devops-agent.streamlit.app/">🔴 Live Demo</a> · <a href="https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent">Source Code</a>
 </p>

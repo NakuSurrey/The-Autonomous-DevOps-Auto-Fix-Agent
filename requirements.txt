@@ -7,3 +7,6 @@ google-genai>=1.0.0
 
 # Loads environment variables from .env file
 python-dotenv>=1.0.0
+
+# Streamlit — turns app.py into a web app for the live demo
+streamlit>=1.30.0
