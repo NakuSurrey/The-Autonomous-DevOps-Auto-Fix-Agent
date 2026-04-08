@@ -214,8 +214,10 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown(
-        "[📂 Source Code](https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent)"
+    st.link_button(
+        "📂 Source Code",
+        "https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent",
+        use_container_width=True,
     )
 
 # ──────────────────────────────────────────────
@@ -298,14 +300,17 @@ with col_tests:
 st.markdown("---")
 
 # ──────────────────────────────────────────────
-# the run agent button
+# the run agent button — made prominent so
+# recruiters cannot miss it
 # ──────────────────────────────────────────────
+st.markdown("")
+st.markdown("")
 st.subheader("🚀 Run the Agent")
 
 if mode == "Demo Mode":
-    st.caption("Demo Mode — replays a real agent run. No API key needed.")
+    st.info("👇 **Click the button below** to watch the agent find and fix all 3 bugs in real time. No API key needed.")
 else:
-    st.caption("Live Mode — the agent will call the Gemini API and reason in real time.")
+    st.info("👇 **Click the button below** to run the agent live with the Gemini API.")
 
 # ──────────────────────────────────────────────
 # demo mode runner
@@ -464,7 +469,7 @@ Diagnose each bug using the ReAct framework and provide the complete fixed code.
 # ──────────────────────────────────────────────
 # the main run button
 # ──────────────────────────────────────────────
-col_btn, col_reset = st.columns([1, 1])
+col_btn, col_reset = st.columns([3, 1])
 
 with col_btn:
     run_clicked = st.button(
@@ -478,6 +483,8 @@ with col_reset:
     if st.button("↺  Reset", use_container_width=True):
         st.session_state["agent_done"] = False
         st.rerun()
+
+st.markdown("")
 
 results = None
 
