@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://nakusurrey-devops-agent.streamlit.app/"><strong>🔴 Live Demo — Click to Watch the Agent Work</strong></a>
+  <a href="https://the-autonomous-devops-auto-fix-agent-9ghek9msuzfvz5xgcmge6t.streamlit.app/"><strong>🔴 Live Demo — Click to Watch the Agent Work</strong></a>
 </p>
 
 <br>
@@ -282,5 +282,5 @@ Every tool call passes through `guardrails.py` before execution:
 
 <p align="center">
   Built by <a href="https://github.com/NakuSurrey">NakuSurrey</a> with Python, Gemini, and Docker<br>
-  <a href="https://nakusurrey-devops-agent.streamlit.app/">🔴 Live Demo</a> · <a href="https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent">Source Code</a>
+  <a href="https://the-autonomous-devops-auto-fix-agent-9ghek9msuzfvz5xgcmge6t.streamlit.app/">🔴 Live Demo</a> · <a href="https://github.com/NakuSurrey/The-Autonomous-DevOps-Auto-Fix-Agent">Source Code</a>
 </p>
